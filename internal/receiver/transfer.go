@@ -54,6 +54,15 @@ type Transfer struct {
 	Groups       map[int32]mapping
 	defaultPerms fs.FileMode
 	retouchDirs  []retouchDir
+
+	// hardLinkGroups maps every file-list index that is part of a
+	// multi-name hard-link group to its group. Built before the
+	// generator/receiver exchange runs. nil when -H is not in effect.
+	hardLinkGroups map[int]*hardLinkGroup
+	// hardLinkAbort is closed as soon as the generator or the receiver
+	// goroutine returns an error, so that a generator waiting for a
+	// hard-link master does not block the shutdown of the transfer.
+	hardLinkAbort chan struct{}
 }
 
 type retouchDir struct {

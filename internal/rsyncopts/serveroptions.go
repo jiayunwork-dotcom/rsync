@@ -52,8 +52,9 @@ func (o *Options) ServerOptions() []string {
 	//  * default for remote transfers, and in any case old versions
 	//  * of rsync will not understand it. */
 
-	// if (preserve_hard_links)
-	// 	argstr[x++] = 'H';
+	if o.PreserveHardLinks() {
+		argstr += "H"
+	}
 	if o.PreserveUid() {
 		argstr += "o"
 	}

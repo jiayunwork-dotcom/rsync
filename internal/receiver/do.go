@@ -73,6 +73,9 @@ func (rt *Transfer) deleteFiles(fileList []*File) error {
 func (rt *Transfer) Do(c *rsyncwire.Conn, fileList []*File, noReport bool) (*rsyncstats.TransferStats, error) {
 	rt.defaultPerms = defaultPerms()
 
+	// Build hard-link groups (-H) before generator and receiver start.
+	rt.initHardLinkGroups(fileList)
+
 	if rt.Opts.DeleteMode {
 		if err := rt.deleteFiles(fileList); err != nil {
 			return nil, err
@@ -86,10 +89,20 @@ func (rt *Transfer) Do(c *rsyncwire.Conn, fileList []*File, noReport bool) (*rsy
 	// background).
 	// waitFor calls f and waits for it to complete, but only until the specified
 	// context is cancelled.
-	var closeOnce sync.Once
+	var (
+		closeOnce sync.Once
+		abortOnce sync.Once
+	)
 	closeOnErr := func(err error) error {
 		if err != nil {
 			closeOnce.Do(func() { c.Close() })
+			// Wake up any generator goroutine blocked waiting for a
+			// hard-link master file.
+			abortOnce.Do(func() {
+				if rt.hardLinkAbort != nil {
+					close(rt.hardLinkAbort)
+				}
+			})
 		}
 		return err
 	}

@@ -44,8 +44,14 @@ func (rt *Transfer) RecvFiles(fileList []*File) error {
 			fmt.Fprintln(rt.Env.Stdout, fileList[idx].Name)
 		}
 		if err := rt.recvFile1(fileList[idx]); err != nil {
+			// Unblock companions waiting for this (master) file so that
+			// the failing transfer can shut down instead of deadlocking.
+			rt.hardLinkMasterReady(int(idx))
 			return err
 		}
+		// If this is a hard-link master, its content is now on disk and
+		// the waiting companion names can be linked to it.
+		rt.hardLinkMasterReady(int(idx))
 	}
 	if rt.Opts.DebugGTE(rsyncopts.DEBUG_RECV, 1) {
 		rt.Logger.Printf("recvFiles finished")

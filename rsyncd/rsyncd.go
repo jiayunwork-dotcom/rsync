@@ -452,20 +452,20 @@ func (s *Server) handleConnReceiver(module *Module, crd *rsyncwire.CountingReade
 			Verbose:  opts.Verbose(),
 			Progress: opts.Progress(),
 
-			DeleteMode:       opts.DeleteMode(),
-			PreserveGid:      opts.PreserveGid(),
-			PreserveUid:      opts.PreserveUid(),
-			PreserveLinks:    opts.PreserveLinks(),
-			PreservePerms:    opts.PreservePerms(),
-			PreserveDevices:  opts.PreserveDevices(),
-			PreserveSpecials: opts.PreserveSpecials(),
-			PreserveTimes:    opts.PreserveMTimes(),
-			// TODO: PreserveHardlinks: opts.PreserveHardlinks,
-			IgnoreTimes:    opts.IgnoreTimes(),
-			AlwaysChecksum: opts.AlwaysChecksum(),
-			DoFsync:        opts.DoFsync(),
-			KeepPartial:    opts.KeepPartial(),
-			SparseFiles:    opts.SparseFiles(),
+			DeleteMode:        opts.DeleteMode(),
+			PreserveGid:       opts.PreserveGid(),
+			PreserveUid:       opts.PreserveUid(),
+			PreserveLinks:     opts.PreserveLinks(),
+			PreservePerms:     opts.PreservePerms(),
+			PreserveDevices:   opts.PreserveDevices(),
+			PreserveSpecials:  opts.PreserveSpecials(),
+			PreserveTimes:     opts.PreserveMTimes(),
+			PreserveHardlinks: opts.PreserveHardLinks(),
+			IgnoreTimes:       opts.IgnoreTimes(),
+			AlwaysChecksum:    opts.AlwaysChecksum(),
+			DoFsync:           opts.DoFsync(),
+			KeepPartial:       opts.KeepPartial(),
+			SparseFiles:       opts.SparseFiles(),
 
 			InfoGTE:  opts.InfoGTE,
 			DebugGTE: opts.DebugGTE,
@@ -523,10 +523,6 @@ func (s *Server) handleConnReceiver(module *Module, crd *rsyncwire.CountingReade
 				s.logger.Printf("opened subdirectory %q", rt.Dest)
 			}
 		}
-	}
-
-	if opts.PreserveHardLinks() {
-		return fmt.Errorf("support for hard links not yet implemented")
 	}
 
 	if opts.DeleteMode() {

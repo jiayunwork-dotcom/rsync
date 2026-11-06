@@ -39,7 +39,17 @@ type fileList struct {
 	TotalSize int64
 	Files     []file
 	Sources   []FileSource
+
+	// syntheticIno assigns unique fake inode numbers to regular files whose
+	// real inode cannot be determined (e.g. non-OS file systems), so that
+	// they are never mistakenly grouped as hard links.
+	syntheticIno int64
 }
+
+// syntheticHardLinkDev is used together with syntheticIno for regular files
+// that do not expose real (dev, inode) identity. No real st_dev has all bits
+// set, so it can never collide with an actual file system.
+const syntheticHardLinkDev int64 = -1
 
 // A fileList must not be used after calling Close().
 func (fl *fileList) Close() {
@@ -299,6 +309,26 @@ func (s *scopedWalker) walkFn(path string, d fs.DirEntry, err error) error {
 		}
 		s.fec.WriteInt32(int32(len(target)))
 		s.fec.WriteString(target)
+	}
+
+	if opts.PreserveHardLinks() && info.Mode().IsRegular() {
+		// Protocol 27 (rsync 2.6.x, see flist.c:send_file_entry):
+		// with -H, every regular file is followed by its device and inode
+		// number (both as 64-bit "longint" values), after the symlink target
+		// and before the checksum. The receiver groups regular files with
+		// identical (dev, inode) as hard links and transfers each inode's
+		// content only once.
+		dev, ino, ok := devInoFromFileInfo(info)
+		if !ok {
+			// No real inode identity (e.g. an fs.FS-backed source): assign a
+			// unique synthetic identity so that independent files are not
+			// mistakenly merged into a hard-link group.
+			dev = syntheticHardLinkDev
+			s.fileList.syntheticIno++
+			ino = s.fileList.syntheticIno
+		}
+		s.fec.WriteInt64(dev)
+		s.fec.WriteInt64(ino)
 	}
 
 	if opts.AlwaysChecksum() {

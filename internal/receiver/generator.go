@@ -236,8 +236,17 @@ func (rt *Transfer) recvGenerator(idx int, f *File) error {
 		return nil
 	}
 
-	if rt.Opts.PreserveHardlinks {
-		// TODO: hard link check
+	// Hard links (-H): companions (all but the lowest-name entry of a
+	// hard-link group) never receive data. They wait until the master is
+	// in place and are then linked to it locally.
+	var hlinkGroup *hardLinkGroup
+	if rt.Opts.PreserveHardlinks && f.FileMode().IsRegular() {
+		if g := rt.hardLinkGroups[idx]; g != nil {
+			if idx != g.master {
+				return rt.recvHardLinkCompanion(f, g)
+			}
+			hlinkGroup = g
+		}
 	}
 
 	if !f.FileMode().IsRegular() {
@@ -302,6 +311,12 @@ func (rt *Transfer) recvGenerator(idx int, f *File) error {
 		}
 		if err := rt.setPerms(f, perm); err != nil {
 			return err
+		}
+		if hlinkGroup != nil {
+			// The master file is already present with up-to-date content;
+			// companion names can now link against it (locally, without any
+			// further network traffic).
+			hlinkGroup.markReady()
 		}
 		return nil
 	}

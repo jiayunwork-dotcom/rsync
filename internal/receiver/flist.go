@@ -38,6 +38,12 @@ type File struct {
 	LinkTarget string
 	Rdev       int32
 	Checksum   [rsyncchecksum.Size]byte
+
+	// Dev and Inode identify the source inode when -H is in effect.
+	// Regular files with identical (Dev, Inode) values are hard links of
+	// one another (rsync protocol 27 encoding, see flist.c).
+	Dev   uint64
+	Inode uint64
 }
 
 // FileMode converts from the Linux permission bits to Go’s permission bits.
@@ -192,6 +198,23 @@ func (rt *Transfer) receiveFileEntry(flags uint16, last *File) (*File, error) {
 			return nil, err
 		}
 		f.LinkTarget = string(b)
+	}
+
+	// Protocol 27: when -H is negotiated the sender appends the source
+	// device and inode number for every regular file (after the symlink
+	// target, before the checksum). Files with the same (dev, inode) tuple
+	// form a hard-link group. See rsync 2.6.9 flist.c:receive_file_entry().
+	if rt.Opts.PreserveHardlinks && mode == rsync.S_IFREG {
+		dev, err := rt.Conn.ReadInt64()
+		if err != nil {
+			return nil, err
+		}
+		inode, err := rt.Conn.ReadInt64()
+		if err != nil {
+			return nil, err
+		}
+		f.Dev = uint64(dev)
+		f.Inode = uint64(inode)
 	}
 
 	if rt.Opts.AlwaysChecksum {

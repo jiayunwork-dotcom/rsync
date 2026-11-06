@@ -15,3 +15,7 @@ func gidFromFileInfo(fs.FileInfo) (int32, bool) {
 func rdevFromFileInfo(fs.FileInfo) (int32, bool) {
 	return 0, false
 }
+
+func devInoFromFileInfo(fs.FileInfo) (dev, ino int64, ok bool) {
+	return 0, 0, false
+}
